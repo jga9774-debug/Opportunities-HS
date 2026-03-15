@@ -2355,149 +2355,62 @@ const DATA = {
 
 };
 
-/* ================================================================
-   APP LOGIC — you don't need to edit anything below this line
-================================================================ */
+/* ── APP LOGIC ── */
+const TABS=[{id:"general",label:"General"},{id:"stem",label:"STEM"},{id:"precollege",label:"Pre-college"},{id:"flyIn",label:"Fly-in programs"}];
+let S={tab:"general",q:"",grade:"",cost:"",loc:"",sort:"deadline"};
 
-const TABS = [
-  { id: "general",    label: "General" },
-  { id: "stem",       label: "STEM" },
-  { id: "precollege", label: "Pre-college" },
-  { id: "flyIn",      label: "Fly-in programs" }
-];
+function dL(dl){if(!dl)return null;const n=new Date();n.setHours(0,0,0,0);return Math.ceil((new Date(dl+"T00:00:00")-n)/86400000)}
+function fD(dl){return new Date(dl+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}
+function dlB(dl){if(!dl)return'<span class="badge b-rolling">Rolling</span>';const n=dL(dl);if(n<0)return'<span class="badge b-closed">Closed</span>';if(n<=14)return`<span class="badge b-urgent">${n}d left</span>`;if(n<=45)return`<span class="badge b-soon">${fD(dl)}</span>`;return`<span class="badge b-ok">${fD(dl)}</span>`}
+function cB(c){if(c==="Free")return'<span class="badge b-free">Free</span>';if(c==="Financial Aid Available")return'<span class="badge b-aid">Aid available</span>';return'<span class="badge b-paid">Paid</span>'}
+function hF(){return S.q||S.grade||S.cost||S.loc}
 
-let state = { tab: "general", q: "", grade: "", cost: "", loc: "", sort: "deadline" };
-
-function daysLeft(dl) {
-  if (!dl) return null;
-  const now = new Date(); now.setHours(0,0,0,0);
-  return Math.ceil((new Date(dl + "T00:00:00") - now) / 86400000);
-}
-
-function fmtDate(dl) {
-  return new Date(dl + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
-function deadlineBadge(dl) {
-  if (!dl) return '<span class="badge b-rolling">Rolling</span>';
-  const n = daysLeft(dl);
-  if (n < 0)  return '<span class="badge b-closed">Closed</span>';
-  if (n <= 14) return `<span class="badge b-urgent">${n}d left</span>`;
-  if (n <= 45) return `<span class="badge b-soon">${fmtDate(dl)}</span>`;
-  return `<span class="badge b-ok">${fmtDate(dl)}</span>`;
-}
-
-function costBadge(cost) {
-  if (cost === "Free")                   return '<span class="badge b-free">Free</span>';
-  if (cost === "Financial Aid Available") return '<span class="badge b-aid">Aid available</span>';
-  return '<span class="badge b-paid">Paid</span>';
-}
-
-function hasFilter() { return state.q || state.grade || state.cost || state.loc; }
-
-function getFiltered() {
-  let ps = DATA[state.tab] || [];
-  const q = state.q.toLowerCase();
-  if (q)        ps = ps.filter(p => p.name.toLowerCase().includes(q) || p.host.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q));
-  if (state.grade) ps = ps.filter(p => p.grades.includes(+state.grade));
-  if (state.cost)  ps = ps.filter(p => p.cost === state.cost);
-  if (state.loc)   ps = ps.filter(p => p.loc === state.loc);
-  ps = [...ps].sort((a, b) => {
-    if (state.sort === "name") return a.name.localeCompare(b.name);
-    if (!a.dl) return 1; if (!b.dl) return -1;
-    return new Date(a.dl) - new Date(b.dl);
-  });
+function gF(){
+  let ps=DATA[S.tab]||[];
+  const q=S.q.toLowerCase();
+  if(q)ps=ps.filter(p=>p.name.toLowerCase().includes(q)||p.host.toLowerCase().includes(q)||p.desc.toLowerCase().includes(q));
+  if(S.grade)ps=ps.filter(p=>p.grades.includes(+S.grade));
+  if(S.cost)ps=ps.filter(p=>p.cost===S.cost);
+  if(S.loc)ps=ps.filter(p=>p.loc===S.loc);
+  ps=[...ps].sort((a,b)=>{if(S.sort==="name")return a.name.localeCompare(b.name);if(!a.dl)return 1;if(!b.dl)return-1;return new Date(a.dl)-new Date(b.dl)});
   return ps;
 }
 
-function updateLocFilter() {
-  const locs = [...new Set((DATA[state.tab] || []).map(p => p.loc))].sort();
-  document.getElementById("fl").innerHTML =
-    '<option value="">All locations</option>' +
-    locs.map(l => `<option value="${l}"${state.loc === l ? " selected" : ""}>${l}</option>`).join("");
+function uLoc(){
+  const locs=[...new Set((DATA[S.tab]||[]).map(p=>p.loc))].sort();
+  document.getElementById("fl").innerHTML='<option value="">All locations</option>'+locs.map(l=>`<option value="${l}"${S.loc===l?" selected":""}>${l}</option>`).join("");
 }
 
-function clearFilters() {
-  state.q = state.grade = state.cost = state.loc = "";
-  document.getElementById("fq").value = "";
-  document.getElementById("fg").value = "";
-  document.getElementById("fc").value = "";
-  document.getElementById("btn-clear").style.display = "none";
-  updateLocFilter();
-  render();
+function clr(){S.q=S.grade=S.cost=S.loc="";["fq","fg","fc"].forEach(id=>document.getElementById(id).value="");document.getElementById("btn-clear").style.display="none";uLoc();render()}
+
+function render(){
+  const ps=gF(),tot=(DATA[S.tab]||[]).length;
+  document.getElementById("meta").innerHTML=hF()?`Showing <strong>${ps.length}</strong> of ${tot} programs &middot; filters active`:`<strong>${ps.length}</strong> programs`;
+  document.getElementById("btn-clear").style.display=hF()?"inline-block":"none";
+  const g=document.getElementById("grid");
+  if(!ps.length){g.innerHTML='<div class="empty"><div class="empty-icon">🔍</div><h3>No programs found</h3><p>Try adjusting your filters to see more results.</p><button onclick="clr()">Clear all filters</button></div>';return}
+  g.innerHTML=ps.map((p,i)=>`<div class="card" style="animation-delay:${Math.min(i*.03,.5)}s"><div><div class="c-org">${p.host}</div><div class="c-name">${p.name}</div></div><div class="c-desc">${p.desc}</div><div class="badges">${cB(p.cost)} ${dlB(p.dl)}</div><div class="c-meta"><div class="c-mr"><svg class="c-mi" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1a5 5 0 1 0 0 10A5 5 0 0 0 8 1z"/><path d="M8 4v3.5l2 2"/></svg>${p.loc}</div><div class="c-mr"><svg class="c-mi" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12h12M4 12V7M8 12V4M12 12V9"/></svg>Grades ${p.grades.join(", ")}</div></div><a href="${p.url}" target="_blank" rel="noreferrer" class="c-link">Learn more →</a></div>`).join("");
 }
 
-function render() {
-  const filtered = getFiltered();
-  const total = (DATA[state.tab] || []).length;
-  document.getElementById("meta").textContent =
-    `Showing ${filtered.length} of ${total} programs${hasFilter() ? " · filters active" : ""}`;
-  document.getElementById("btn-clear").style.display = hasFilter() ? "inline" : "none";
+function init(){
+  const all=Object.values(DATA).flat();
+  const tot=all.length,free=all.filter(p=>p.cost==="Free"||p.cost==="Financial Aid Available").length;
+  document.getElementById("sn-total").textContent=tot;
+  document.getElementById("sn-free").textContent=free;
+  document.getElementById("fc-total").textContent=`${tot} opportunities across ${Object.keys(DATA).length} categories`;
 
-  const grid = document.getElementById("grid");
-  if (!filtered.length) {
-    grid.innerHTML = `<div class="empty">No programs match your filters. <button onclick="clearFilters()">Clear filters</button></div>`;
-    return;
-  }
-  grid.innerHTML = filtered.map(p => `
-    <div class="card">
-      <div>
-        <div class="card-org">${p.host}</div>
-        <div class="card-name">${p.name}</div>
-      </div>
-      <div class="card-desc">${p.desc}</div>
-      <div class="badges">${costBadge(p.cost)} ${deadlineBadge(p.dl)}</div>
-      <div class="card-details">
-        <span>Location: ${p.loc}</span>
-        <span>Eligible grades: ${p.grades.join(", ")}</span>
-      </div>
-      <a href="${p.url}" target="_blank" rel="noreferrer" class="card-link">Learn more →</a>
-    </div>`).join("");
+  const nav=document.getElementById("tabs");
+  nav.innerHTML=TABS.map(t=>`<button class="tab${S.tab===t.id?" active":""}" data-t="${t.id}">${t.label}<span class="cnt">${(DATA[t.id]||[]).length}</span></button>`).join("");
+  nav.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{S.tab=b.dataset.t;S.loc="";nav.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.getElementById("fl").value="";uLoc();render()}));
+
+  const sync=()=>{S.q=document.getElementById("fq").value;S.grade=document.getElementById("fg").value;S.cost=document.getElementById("fc").value;S.loc=document.getElementById("fl").value;S.sort=document.getElementById("fs").value;document.getElementById("btn-clear").style.display=hF()?"inline-block":"none";render()};
+  document.getElementById("fq").addEventListener("input",sync);
+  ["fg","fc","fl","fs"].forEach(id=>document.getElementById(id).addEventListener("change",sync));
+  document.getElementById("btn-clear").addEventListener("click",clr);
+  uLoc();render();
 }
-
-function init() {
-  const total = Object.values(DATA).flat().length;
-  document.getElementById("total-pill").textContent = `${total} programs`;
-
-  const nav = document.getElementById("tabs");
-  nav.innerHTML = TABS.map(t =>
-    `<button class="tab${state.tab === t.id ? " active" : ""}" data-t="${t.id}">
-      ${t.label}<span class="count">(${(DATA[t.id] || []).length})</span>
-    </button>`
-  ).join("");
-
-  nav.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => {
-    state.tab = btn.dataset.t;
-    state.loc = "";
-    nav.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById("fl").value = "";
-    updateLocFilter();
-    render();
-  }));
-
-  const sync = () => {
-    state.q    = document.getElementById("fq").value;
-    state.grade = document.getElementById("fg").value;
-    state.cost  = document.getElementById("fc").value;
-    state.loc   = document.getElementById("fl").value;
-    state.sort  = document.getElementById("fs").value;
-    document.getElementById("btn-clear").style.display = hasFilter() ? "inline" : "none";
-    render();
-  };
-
-  document.getElementById("fq").addEventListener("input",  sync);
-  document.getElementById("fg").addEventListener("change", sync);
-  document.getElementById("fc").addEventListener("change", sync);
-  document.getElementById("fl").addEventListener("change", sync);
-  document.getElementById("fs").addEventListener("change", sync);
-  document.getElementById("btn-clear").addEventListener("click", clearFilters);
-
-  updateLocFilter();
-  render();
-}
-
 init();
 </script>
 </body>
 </html>
+
